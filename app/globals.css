@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --color-pink-accent: rgba(255 20 147 / 0.2);
+  --color-card-bg: rgba(20 20 20 / 0.95);
+}
+
+@layer utilities {
+  .bg-card {
+    background-color: var(--color-card-bg);
+  }
+
+  .border-accent {
+    border-color: var(--color-pink-accent);
+  }
+
+  .shadow-card {
+    box-shadow:
+      0 25px 50px rgba(0 0 0 / 0.5),
+      0 0 0 1px rgba(255 20 147 / 0.1),
+      inset 0 1px 0 rgba(255 255 255 / 0.1);
+  }
+
+  @keyframes cardFloat {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+
+  .animate-cardFloat {
+    animation: cardFloat 6s ease-in-out infinite;
+  }
+}
