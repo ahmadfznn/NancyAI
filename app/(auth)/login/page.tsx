@@ -1,11 +1,16 @@
 "use client";
 
+import { auth, googleProvider } from "@/lib/firebase";
+import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 
 const Login = () => {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [Loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [buttonText, setButtonText] = useState("Initialize Connection");
   const cardRef = useRef<HTMLDivElement | null>(null);
   const particlesRef = useRef<HTMLDivElement | null>(null);
@@ -82,16 +87,16 @@ const Login = () => {
     };
   }, []);
 
-  const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  const handleSubmit = async (e?: React.MouseEvent<HTMLButtonElement>) => {
+    if (e) e.preventDefault();
+    setLoading(true);
     setButtonText("ESTABLISHING NEURAL LINK...");
 
     setTimeout(() => {
       setButtonText("CONNECTION ESTABLISHED ✨");
       setTimeout(() => {
         setButtonText("Initialize Connection");
-        setIsSubmitting(false);
+        setLoading(false);
       }, 2000);
     }, 2000);
   };
@@ -102,6 +107,46 @@ const Login = () => {
 
   const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     e.target.parentElement!.style.transform = "scale(1)";
+  };
+
+  const loginWithEmail = async () => {
+    await handleSubmit();
+    setLoading(true);
+    setError(null);
+    try {
+      const userCred = await signInWithEmailAndPassword(auth, email, password);
+      const idToken = await userCred.user.getIdToken();
+      await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+      router.push(`/chat/123123`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginWithGoogle = async () => {
+    await handleSubmit();
+    setLoading(true);
+    setError(null);
+    try {
+      const userCred = await signInWithPopup(auth, googleProvider);
+      const idToken = await userCred.user.getIdToken();
+      await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+      router.push(`/chat/${userCred.user.uid}`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -366,10 +411,10 @@ const Login = () => {
 
               <button
                 type="button"
-                onClick={handleSubmit}
-                disabled={isSubmitting}
+                onClick={loginWithEmail}
+                disabled={Loading}
                 className={`btn-shine w-full py-4 rounded-2xl text-white text-lg font-semibold tracking-wide uppercase transition-all duration-300 relative overflow-hidden ${
-                  isSubmitting
+                  Loading
                     ? "bg-gradient-to-r from-green-400 to-blue-400"
                     : "bg-gradient-to-r from-pink-500 to-pink-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-pink-500/40"
                 }`}
@@ -388,9 +433,10 @@ const Login = () => {
 
               <button
                 type="button"
+                onClick={loginWithGoogle}
                 className="w-full py-4 bg-white/5 border border-white/20 rounded-2xl text-white text-base font-medium transition-all duration-300 flex items-center justify-center gap-3 hover:bg-white/10 hover:border-pink-300/50 hover:-translate-y-0.5 backdrop-blur-md"
               >
-                <div className="w-5 h-5 bg-gradient-to-r from-blue-500 via-green-500 via-yellow-500 to-red-500 rounded"></div>
+                <div className="w-5 h-5 bg-gradient-to-r from-blue-500 via-yellow-500 to-red-500 rounded"></div>
                 Neural Sync with Google
               </button>
             </div>
