@@ -1,25 +1,24 @@
-import type { ServiceAccount } from "firebase-admin";
-import serviceAccount from "../firebase-service-account.json";
+import { initializeApp, getApps, cert, App } from "firebase-admin/app";
+import { getAuth as getAdminAuth } from "firebase-admin/auth";
+import { readFileSync } from "fs";
+import path from "path";
 
-let adminAuth: ReturnType<typeof import("firebase-admin").auth>;
-let adminDb: ReturnType<typeof import("firebase-admin").firestore>;
+const serviceAccountPath = path.resolve(
+  process.env.FIREBASE_SERVICE_ACCOUNT_PATH!
+);
+const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, "utf8"));
 
-(async () => {
-  const admin = await import("firebase-admin");
+let app: App;
 
-  if (!admin.apps.length) {
-    try {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount as ServiceAccount),
-      });
-      console.log("✅ Firebase Admin SDK initialized.");
-    } catch (err) {
-      console.error("🔥 Firebase Admin SDK init error:", err);
-    }
-  }
+if (!getApps().length) {
+  app = initializeApp({
+    credential: cert(serviceAccount),
+    projectId: serviceAccount.project_id,
+  });
+} else {
+  app = getApps()[0];
+}
 
-  adminAuth = admin.auth();
-  adminDb = admin.firestore();
-})();
+const auth = getAdminAuth(app);
 
-export { adminAuth, adminDb };
+export { auth };

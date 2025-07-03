@@ -1,23 +1,14 @@
-export const runtime = "nodejs";
-
 import { NextRequest, NextResponse } from "next/server";
-import * as admin from "firebase-admin";
-import serviceAccount from "../../../firebase-service-account.json";
-
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-  });
-}
+import { auth } from "@/lib/firebaseAdmin";
 
 export async function POST(req: NextRequest) {
   try {
     const { idToken } = await req.json();
 
-    const decoded = await admin.auth().verifyIdToken(idToken);
+    const decoded = await auth.verifyIdToken(idToken);
     const expiresIn = 7 * 24 * 60 * 60 * 1000;
 
-    const sessionCookie = await admin.auth().createSessionCookie(idToken, {
+    const sessionCookie = await auth.createSessionCookie(idToken, {
       expiresIn,
     });
 

@@ -10,6 +10,7 @@ import {
   LogOut,
   Plus,
   Trash2,
+  ChevronDown,
 } from "lucide-react";
 import { db } from "../../../lib/firebase";
 import {
@@ -25,7 +26,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { auth } from "../../../lib/firebase";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 const SYSTEM_PROMPT =
   "You are a romantic and elegant AI girlfriend who always replies warmly, lovingly, and elegantly like a devoted partner.";
@@ -33,12 +34,23 @@ const SYSTEM_PROMPT =
 const Chat = () => {
   const { id } = useParams();
   const [chatHistory, setChatHistory] = useState<
-    { role: "user" | "assistant" | "system"; content: string }[]
-  >([{ role: "system", content: SYSTEM_PROMPT }]);
+    {
+      id: string;
+      role: "user" | "assistant" | "system";
+      content: string;
+      timestamp?: any;
+    }[]
+  >([
+    { role: "system", content: SYSTEM_PROMPT, id: "system", timestamp: null },
+  ]);
+
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [streamedReply, setStreamedReply] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState<{ [key: number]: boolean }>(
+    {}
+  );
   const [chatRooms, setChatRooms] = useState([
     {
       id: "1",
@@ -68,6 +80,7 @@ const Chat = () => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const route = useRouter();
 
   const createQuantumParticle = (x: number, y: number) => {
     const particle = document.createElement("div");
@@ -99,9 +112,10 @@ const Chat = () => {
           const querySnapshot = await getDocs(messagesQuery);
 
           const messages = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
             role: doc.data().role,
             content: doc.data().message,
-            id: doc.id,
+            timestamp: doc.data().timestamp || null,
           }));
 
           if (!messages.some((msg) => msg.role === "system")) {
@@ -109,6 +123,7 @@ const Chat = () => {
               role: "system",
               content: SYSTEM_PROMPT,
               id: "system",
+              timestamp: null,
             });
           }
 
@@ -157,7 +172,12 @@ const Chat = () => {
   const sendMessage = async () => {
     if (!inputMessage.trim() || isTyping) return;
 
-    const userMessage = { role: "user" as const, content: inputMessage };
+    const userMessage = {
+      role: "user" as const,
+      content: inputMessage,
+      timestamp: new Date(),
+      id: `user-${Date.now()}`,
+    };
     const updatedHistory = [...chatHistory, userMessage];
     setChatHistory(updatedHistory);
     setInputMessage("");
@@ -168,14 +188,17 @@ const Chat = () => {
       setIsTyping(false);
       setChatHistory((prev) => [
         ...prev,
-        { role: "assistant", content: "You must be logged in to chat." },
+        {
+          role: "assistant",
+          content: "You must be logged in to chat.",
+          id: `assistant-${Date.now()}`,
+        },
       ]);
       return;
     }
 
     await saveMessageToFirestore(userId, "user", inputMessage, id as string);
 
-    // Ambil hanya 20 pesan terakhir (tanpa system), dan prepend system
     const cleanHistory = updatedHistory
       .filter((m) => m.role !== "system")
       .slice(-20);
@@ -227,12 +250,11 @@ const Chat = () => {
             if (!line.trim()) continue;
             try {
               const json = JSON.parse(line);
-              // ✅ Hanya proses jika role assistant dan tidak ada thinking
               if (
                 json.message &&
                 json.message.role === "assistant" &&
                 typeof json.message.content === "string" &&
-                !json.message.thinking // 💡 abaikan jika ada field thinking
+                !json.message.thinking
               ) {
                 aiReply += json.message.content;
                 setStreamedReply(aiReply);
@@ -253,7 +275,12 @@ const Chat = () => {
         );
         setChatHistory((prev) => [
           ...prev,
-          { role: "assistant", content: aiReply },
+          {
+            role: "assistant",
+            content: aiReply,
+            timestamp: new Date(),
+            id: `assistant-${Date.now()}`,
+          },
         ]);
       }
     } catch (err) {
@@ -266,6 +293,8 @@ const Chat = () => {
           role: "assistant",
           content:
             "Sorry, I couldn't connect to my quantum heart right now. Please try again soon. 💔",
+          timestamp: new Date(),
+          id: `assistant-${Date.now()}`,
         },
       ]);
     }
@@ -305,9 +334,19 @@ const Chat = () => {
     }
   };
 
-  const handleLogout = () => {
-    auth.signOut();
-    // Redirect logic would go here
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+
+      const res = await fetch("/api/logout", { method: "POST" });
+      if (res.ok) {
+        route.push("/login");
+      } else {
+        console.error("Logout failed");
+      }
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
   };
 
   const handleProfile = () => {
@@ -315,9 +354,80 @@ const Chat = () => {
     console.log("Navigate to profile");
   };
 
+  const handleDropdownToggle = (index: number) => {
+    setDropdownOpen((prev) => ({ ...prev, [index]: !prev[index] }));
+  };
+
+  const handleCopyMessage = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  const handleDeleteMessage = async (message: {
+    id: string;
+    role: string;
+    content: string;
+    timestamp?: any;
+  }) => {
+    // Firestore delete logic
+  };
+
+  const handleViewDetails = (message: {
+    id: string;
+    role: string;
+    content: string;
+    timestamp?: any;
+  }) => {
+    // Modal with timestamp, id, etc
+  };
+
+  const handleEditMessage = (message: {
+    id: string;
+    role: string;
+    content: string;
+    timestamp?: any;
+  }) => {
+    // Editable input field logic
+  };
+
+  const handleThumbUp = (message: {
+    id: string;
+    role: string;
+    content: string;
+    timestamp?: any;
+  }) => {
+    // Could update a like field in Firestore
+  };
+
+  const handleThumbDown = (message: {
+    id: string;
+    role: string;
+    content: string;
+    timestamp?: any;
+  }) => {
+    // Same as above
+  };
+
+  const handleRegenerate = (message: {
+    id: string;
+    role: string;
+    content: string;
+    timestamp?: any;
+  }) => {
+    // Trigger resend of previous user message
+  };
+
+  const handleShare = (message: {
+    id: string;
+    role: string;
+    content: string;
+    timestamp?: any;
+  }) => {
+    // Generate sharable link, or open modal
+  };
+
   return (
     <div
-      className="min-h-screen overflowx w-screen bg-gradient-to-br from-black via-gray-900 to-purple-900 relative overflow-hidden font-['Rajdhani',sans-serif] text-white flex"
+      className="min-h-screen w-screen bg-gradient-to-br from-black via-gray-900 to-purple-950 relative overflow-hidden font-['Rajdhani',sans-serif] text-white flex"
       onClick={handleClick}
     >
       {/* Cyberpunk Grid Background */}
@@ -504,12 +614,12 @@ const Chat = () => {
                   animation: "titlePulse 4s ease-in-out infinite",
                 }}
               >
-                NANCY AI
+                LUCY AI
               </h1>
 
               {/* Refleksi */}
               <h1 className="mt-1 text-3xl lg:text-4xl font-bold bg-gradient-to-b from-white/30 to-transparent bg-clip-text text-transparent font-['Orbitron',monospace] tracking-wider opacity-30 scale-y-[-1] blur-sm pointer-events-none select-none">
-                NANCY AI
+                LUCY AI
               </h1>
             </div>
           </div>
@@ -557,10 +667,7 @@ const Chat = () => {
                 >
                   {/* Avatar */}
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-semibold flex-shrink-0 relative ${
-                      message.role === "user"
-                        ? "bg-gradient-to-br from-pink-500 to-pink-400 text-white shadow-[0_0_20px_rgba(255,20,147,0.6)]"
-                        : "bg-gradient-to-br from-gray-700 to-gray-800 text-pink-500 border-2 border-pink-500/40 shadow-[0_0_15px_rgba(255,20,147,0.3)]"
+                    className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-semibold flex-shrink-0 relative bg-gradient-to-br from-pink-500 to-pink-400 text-white shadow-[0_0_20px_rgba(255,20,147,0.6)]"
                     }`}
                   >
                     <div
@@ -568,19 +675,103 @@ const Chat = () => {
                       style={{ animation: "avatarSpin 8s linear infinite" }}
                     />
                     <span className="relative z-10">
-                      {message.role === "user" ? "U" : "N"}
+                      {message.role === "user" ? "U" : "L"}
                     </span>
                   </div>
                   {/* Message Bubble */}
                   <div
-                    className={`max-w-[70%] p-5 lg:p-6 rounded-3xl relative backdrop-blur-md text-sm lg:text-base leading-relaxed ${
+                    className={`max-w-[70%] min-w-[8%] pl-3 pr-6 pt-3 pb-7 text-justify relative backdrop-blur-md text-sm lg:text-base leading-relaxed ${
                       message.role === "user"
-                        ? "bg-gradient-to-br from-pink-500/20 to-pink-500/10 border border-pink-500/40 text-white shadow-[0_8px_32px_rgba(255,20,147,0.2)]"
-                        : "bg-gradient-to-br from-gray-800/80 to-gray-900/90 border border-white/10 text-white/90 shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
+                        ? "bg-gradient-to-br from-pink-500/20 to-pink-500/10 border border-pink-500/40 text-white shadow-[0_8px_32px_rgba(255,20,147,0.2)] rounded-t-3xl rounded-bl-3xl"
+                        : "bg-gradient-to-br from-gray-800/80 to-gray-900/90 border border-white/10 text-white/90 shadow-[0_8px_32px_rgba(0,0,0,0.3)] rounded-t-3xl rounded-br-3xl"
                     } before:absolute before:inset-0 before:rounded-3xl before:bg-gradient-to-r before:from-transparent before:via-pink-500/10 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300`}
                   >
                     <div className="relative z-10 whitespace-pre-wrap">
+                      <div className="absolute -top-1 -right-5 z-20">
+                        <button
+                          onClick={() => handleDropdownToggle(idx)} // Buat state toggle masing-masing idx
+                          className="text-white/40 hover:text-white"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+
+                        {dropdownOpen[idx] && (
+                          <div className="absolute right-0 mt-2 w-40 bg-black/80 border border-pink-500/20 rounded-lg shadow-lg text-sm backdrop-blur-md z-10">
+                            <button
+                              onClick={() => handleDeleteMessage(message)}
+                              className="w-full px-4 py-2 hover:bg-pink-500/10 text-left"
+                            >
+                              🗑 Delete
+                            </button>
+                            <button
+                              onClick={() => handleViewDetails(message)}
+                              className="w-full px-4 py-2 hover:bg-pink-500/10 text-left"
+                            >
+                              ℹ️ Details
+                            </button>
+                            {message.role === "user" && (
+                              <button
+                                onClick={() => handleEditMessage(message)}
+                                className="w-full px-4 py-2 hover:bg-pink-500/10 text-left"
+                              >
+                                ✏️ Edit
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
                       {message.content}
+
+                      {message.role === "assistant" && (
+                        <div className="absolute -bottom-5 right-0 flex gap-2 text-white/40 text-xs">
+                          <button
+                            onClick={() => handleThumbUp(message)}
+                            title="Like"
+                          >
+                            👍
+                          </button>
+                          <button
+                            onClick={() => handleThumbDown(message)}
+                            title="Dislike"
+                          >
+                            👎
+                          </button>
+                          <button
+                            onClick={() => handleCopyMessage(message.content)}
+                            title="Copy"
+                          >
+                            📋
+                          </button>
+                          <button
+                            onClick={() => handleRegenerate(message)}
+                            title="Regenerate"
+                          >
+                            ♻️
+                          </button>
+                          <button
+                            onClick={() => handleShare(message)}
+                            title="Share"
+                          >
+                            🔗
+                          </button>
+                        </div>
+                      )}
+
+                      <div
+                        className={`absolute ${
+                          message.role === "user"
+                            ? "-bottom-7 -right-5"
+                            : "-bottom-7 -left-1"
+                        } text-[11px] text-white/50 font-mono`}
+                      >
+                        {new Date(
+                          message.timestamp?.toDate?.() || Date.now()
+                        ).toLocaleTimeString("id-ID", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>

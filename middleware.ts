@@ -7,16 +7,27 @@ export function middleware(req: NextRequest) {
   if (pathname.startsWith("/chat") && !session) {
     const loginUrl = req.nextUrl.clone();
     loginUrl.pathname = "/login";
-    return NextResponse.redirect(loginUrl);
+    const response = NextResponse.redirect(loginUrl);
+    applySecurityHeaders(response);
+    return response;
   }
 
-  // if ((pathname === "/login" || pathname === "/register") && session) {
-  //   const chatUrl = req.nextUrl.clone();
-  //   chatUrl.pathname = "/chat";
-  //   return NextResponse.redirect(chatUrl);
-  // }
+  if ((pathname === "/login" || pathname === "/register") && session) {
+    const chatUrl = req.nextUrl.clone();
+    chatUrl.pathname = "/chat";
+    const response = NextResponse.redirect(chatUrl);
+    applySecurityHeaders(response);
+    return response;
+  }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  applySecurityHeaders(response);
+  return response;
+}
+
+function applySecurityHeaders(res: NextResponse) {
+  res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  res.headers.set("Cross-Origin-Embedder-Policy", "require-corp");
 }
 
 export const config = {
