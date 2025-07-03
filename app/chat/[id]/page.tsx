@@ -22,6 +22,7 @@ import {
   orderBy,
   deleteDoc,
   doc,
+  setDoc,
 } from "firebase/firestore";
 import { auth } from "../../../lib/firebase";
 import { useParams } from "next/navigation";
@@ -89,21 +90,20 @@ const Chat = () => {
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      console.log(user);
       if (user) {
         setUserId(user.uid);
         try {
-          const messagesQuery = query(
-            collection(db, "messages"),
-            where("conversationId", "==", id),
-            orderBy("timestamp")
-          );
+          const convoRef = doc(db, "conversations", id as string);
+          const messagesRef = collection(convoRef, "messages");
+          const messagesQuery = query(messagesRef, orderBy("timestamp"));
           const querySnapshot = await getDocs(messagesQuery);
+
           const messages = querySnapshot.docs.map((doc) => ({
             role: doc.data().role,
             content: doc.data().message,
             id: doc.id,
           }));
+
           if (!messages.some((msg) => msg.role === "system")) {
             messages.unshift({
               role: "system",
@@ -125,49 +125,64 @@ const Chat = () => {
   }, [id]);
 
   const saveMessageToFirestore = async (
-    userId: string | undefined,
+    userId: string,
     role: string,
     message: string,
     conversationId: string
   ) => {
     try {
-      await addDoc(collection(db, "messages"), {
-        userId,
+      const convoRef = doc(db, "conversations", conversationId);
+      const messagesRef = collection(convoRef, "messages");
+
+      await addDoc(messagesRef, {
         role,
         message,
-        conversationId,
         timestamp: serverTimestamp(),
       });
+
+      await setDoc(
+        convoRef,
+        {
+          userId,
+          lastMessage: message,
+          timestamp: serverTimestamp(),
+        },
+        { merge: true }
+      );
     } catch (error) {
-      console.error("Error saving message to Firestore:", error);
+      console.error("🔥 Failed to save message to Firestore:", error);
     }
   };
 
   const sendMessage = async () => {
     if (!inputMessage.trim() || isTyping) return;
+
     const userMessage = { role: "user" as const, content: inputMessage };
-    const historyToSend = chatHistory
-      .filter((m) => m.role !== "system")
-      .slice(-20);
-    historyToSend.unshift({ role: "system", content: SYSTEM_PROMPT });
-    setChatHistory((prev) => [...prev, userMessage]);
+    const updatedHistory = [...chatHistory, userMessage];
+    setChatHistory(updatedHistory);
     setInputMessage("");
     setIsTyping(true);
     setStreamedReply("");
 
     if (!userId) {
       setIsTyping(false);
-      setStreamedReply("");
       setChatHistory((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content: "You must be logged in to chat.",
-        },
+        { role: "assistant", content: "You must be logged in to chat." },
       ]);
       return;
     }
+
     await saveMessageToFirestore(userId, "user", inputMessage, id as string);
+
+    // Ambil hanya 20 pesan terakhir (tanpa system), dan prepend system
+    const cleanHistory = updatedHistory
+      .filter((m) => m.role !== "system")
+      .slice(-20);
+    const messagesForAPI = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...cleanHistory,
+    ];
 
     try {
       const response = await fetch("http://localhost:11434/api/chat", {
@@ -176,17 +191,9 @@ const Chat = () => {
         body: JSON.stringify({
           model: "qwen3:4b",
           stream: true,
-          think: false,
+          think: true,
           raw: false,
-          messages: historyToSend.map((m) => ({
-            role:
-              m.role === "assistant"
-                ? "assistant"
-                : m.role === "user"
-                ? "user"
-                : "system",
-            content: m.content,
-          })),
+          messages: messagesForAPI,
           options: {
             temperature: 1.5,
             top_k: 40,
@@ -205,10 +212,12 @@ const Chat = () => {
           },
         }),
       });
+
       if (!response.body) throw new Error("No response body");
       const reader = response.body.getReader();
       let aiReply = "";
       let done = false;
+
       while (!done) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
@@ -218,19 +227,23 @@ const Chat = () => {
             if (!line.trim()) continue;
             try {
               const json = JSON.parse(line);
-              if (json.message && json.message.content) {
+              // ✅ Hanya proses jika role assistant dan tidak ada thinking
+              if (
+                json.message &&
+                json.message.role === "assistant" &&
+                typeof json.message.content === "string" &&
+                !json.message.thinking // 💡 abaikan jika ada field thinking
+              ) {
                 aiReply += json.message.content;
                 setStreamedReply(aiReply);
               }
-            } catch (err) {
-              // ignore malformed lines
-            }
+            } catch (err) {}
           }
         }
       }
+
       setIsTyping(false);
 
-      // After streaming is done, save the full assistant message to Firestore
       if (aiReply && userId) {
         await saveMessageToFirestore(
           userId,
@@ -238,7 +251,6 @@ const Chat = () => {
           aiReply,
           id as string
         );
-        // Add the AI reply to chat history after saving
         setChatHistory((prev) => [
           ...prev,
           { role: "assistant", content: aiReply },
@@ -265,18 +277,32 @@ const Chat = () => {
     }
   };
 
-  const handleNewChat = () => {
-    const newChat = {
-      id: Date.now().toString(),
-      name: `New Chat ${chatRooms.length + 1}`,
-      lastMessage: "Start a conversation...",
-      timestamp: "now",
-    };
-    setChatRooms((prev) => [newChat, ...prev]);
+  const handleNewChat = async () => {
+    try {
+      const docRef = await addDoc(collection(db, "conversations"), {
+        userId,
+        lastMessage: "",
+        timestamp: serverTimestamp(),
+      });
+      const newChat = {
+        id: docRef.id,
+        name: `New Chat ${chatRooms.length + 1}`,
+        lastMessage: "Start a conversation...",
+        timestamp: "now",
+      };
+      setChatRooms((prev) => [newChat, ...prev]);
+    } catch (err) {
+      console.error("🔥 Failed to create new conversation:", err);
+    }
   };
 
-  const handleDeleteChat = (chatId: string) => {
-    setChatRooms((prev) => prev.filter((chat) => chat.id !== chatId));
+  const handleDeleteChat = async (chatId: string) => {
+    try {
+      await deleteDoc(doc(db, "conversations", chatId));
+      setChatRooms((prev) => prev.filter((chat) => chat.id !== chatId));
+    } catch (err) {
+      console.error("🔥 Failed to delete conversation:", err);
+    }
   };
 
   const handleLogout = () => {
