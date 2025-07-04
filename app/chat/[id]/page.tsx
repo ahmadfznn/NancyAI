@@ -614,12 +614,12 @@ const Chat = () => {
                   animation: "titlePulse 4s ease-in-out infinite",
                 }}
               >
-                LUCY AI
+                Nancy AI
               </h1>
 
               {/* Refleksi */}
               <h1 className="mt-1 text-3xl lg:text-4xl font-bold bg-gradient-to-b from-white/30 to-transparent bg-clip-text text-transparent font-['Orbitron',monospace] tracking-wider opacity-30 scale-y-[-1] blur-sm pointer-events-none select-none">
-                LUCY AI
+                Nancy AI
               </h1>
             </div>
           </div>
