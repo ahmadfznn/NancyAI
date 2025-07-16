@@ -1,14 +1,30 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { auth } from "@/lib/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  collection,
+  doc,
+  getDocs,
+  query,
+  setDoc,
+  where,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const Register = () => {
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [buttonText, setButtonText] = useState("Initialize Connection");
   const cardRef = useRef<HTMLDivElement | null>(null);
   const particlesRef = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
 
   const particles: HTMLDivElement[] = [];
 
@@ -86,6 +102,73 @@ const Register = () => {
     e.preventDefault();
     setIsSubmitting(true);
     setButtonText("ESTABLISHING NEURAL LINK...");
+
+    try {
+      const q = query(
+        collection(db, "users"),
+        where("username", "==", `@${username}`)
+      );
+      const querySnapshot = await getDocs(q);
+      if (!username || username.includes(" ")) {
+        throw new Error("Username cannot be empty or contain spaces.");
+      }
+      if (!username.match(/^[a-zA-Z0-9_]+$/)) {
+        throw new Error(
+          "Username can only contain letters, numbers, and underscores."
+        );
+      }
+      if (!querySnapshot.empty) {
+        throw new Error("Username is already taken.");
+      }
+
+      const userCred = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const user = userCred.user;
+      const idToken = await user.getIdToken();
+
+      // Create user document in Firestore
+      const userDocRef = doc(db, "users", user.uid);
+      await setDoc(userDocRef, {
+        uid: user.uid,
+        displayName: username,
+        username: `@${username}`,
+        email: user.email,
+        location: "Cyber Realm",
+        status: "Exploring digital consciousness",
+        aiPersona: "AI Companion",
+        relationshipLevel: 50,
+        chatStyle: "Poetic & Introspective",
+        interests: ["Technology", "Philosophy"],
+        voicePreference: "Soft & Melodic",
+        language: "English",
+        activityStats: {
+          messagesSent: 0,
+          chatHours: 0,
+          firstChatDate: new Date(),
+          topTopic: "Getting Started",
+        },
+        createdAt: new Date(),
+      });
+
+      await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+      router.push(`/chat`);
+    } catch (err: any) {
+      console.error("🔥 Registration error:", err);
+      if (err.code === "auth/email-already-in-use") {
+        setError("Email already used");
+      } else {
+        setError(err.message);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
 
     setTimeout(() => {
       setButtonText("CONNECTION ESTABLISHED ✨");
@@ -334,6 +417,25 @@ const Register = () => {
             <div className="space-y-6">
               <div className="relative transition-transform duration-300">
                 <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                  className="input-focus w-full pl-12 pr-5 py-4 bg-black/60 border border-pink-300/30 rounded-2xl text-white text-base font-medium placeholder-white/50 outline-none transition-all duration-300 focus:border-pink-500 focus:shadow-lg focus:shadow-pink-500/30 focus:bg-black/80 backdrop-blur-md"
+                  placeholder="Unique Username"
+                  required
+                />
+                <div className="input-icon absolute left-4 top-1/2 -translate-y-1/2 text-pink-300 text-xl transition-all duration-300">
+                  🧠
+                </div>
+                <div className="text-red-500 text-sm mt-1">
+                  {error && <span>{error}</span>}
+                </div>
+              </div>
+
+              <div className="relative transition-transform duration-300">
+                <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -345,6 +447,9 @@ const Register = () => {
                 />
                 <div className="input-icon absolute left-4 top-1/2 -translate-y-1/2 text-pink-300 text-xl transition-all duration-300">
                   📧
+                </div>
+                <div className="text-red-500 text-sm mt-1">
+                  {error && <span>{error}</span>}
                 </div>
               </div>
 
@@ -390,9 +495,19 @@ const Register = () => {
                 type="button"
                 className="w-full py-4 bg-white/5 border border-white/20 rounded-2xl text-white text-base font-medium transition-all duration-300 flex items-center justify-center gap-3 hover:bg-white/10 hover:border-pink-300/50 hover:-translate-y-0.5 backdrop-blur-md"
               >
-                <div className="w-5 h-5 bg-gradient-to-r from-blue-500 via-green-500 via-yellow-500 to-red-500 rounded"></div>
+                <div className="w-5 h-5 bg-gradient-to-r from-blue-500 via-yellow-500 to-red-500 rounded"></div>
                 Neural Sync with Google
               </button>
+
+              {/* Link to Login Page */}
+              <div className="text-center mt-4">
+                <Link
+                  href="/login"
+                  className="text-pink-300 hover:underline font-semibold"
+                >
+                  Already have an account? Login here
+                </Link>
+              </div>
             </div>
           </div>
         </div>

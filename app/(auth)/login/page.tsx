@@ -1,9 +1,19 @@
 "use client";
 
 import { auth, googleProvider } from "@/lib/firebase";
-import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+import {
+  browserSessionPersistence,
+  getRedirectResult,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  setPersistence,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
+} from "firebase/auth";
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const Login = () => {
   const router = useRouter();
@@ -109,6 +119,130 @@ const Login = () => {
     e.target.parentElement!.style.transform = "scale(1)";
   };
 
+  useEffect(() => {
+    console.log("🚀 useEffect Called");
+
+    setPersistence(auth, browserSessionPersistence).catch(console.error);
+
+    const handleRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+
+        if (!result) {
+          console.warn("🛑 getRedirectResult returned null (no login info)");
+        } else {
+          console.log("✅ Redirect login success:", result.user.email);
+
+          const idToken = await result.user.getIdToken();
+          const res = await fetch("/api/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idToken }),
+          });
+
+          const data = await res.json();
+          console.log("🍪 Session response:", data);
+
+          if (data?.success) {
+            router.push(`/chat`);
+          } else {
+            setError("Session creation failed.");
+          }
+          return;
+        }
+      } catch (err: any) {
+        console.error("🔥 Redirect login error:", err);
+        setError(err.message);
+      }
+
+      // ⛑️ Fallback if getRedirectResult failed
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          console.log("🙌 User detected via authStateChanged:", user.email);
+
+          const idToken = await user.getIdToken();
+          const res = await fetch("/api/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idToken }),
+          });
+
+          const data = await res.json();
+          console.log("🍪 Session response:", data);
+
+          if (data?.success) {
+            router.push(`/chat/${user.uid}`);
+          } else {
+            setError("Session creation failed (authStateChanged).");
+          }
+        }
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
+    };
+
+    handleRedirect();
+  }, []);
+
+  // 🔐 Google Login Trigger
+  const loginWithGoogle = async () => {
+    setLoading(true);
+    setError(null);
+
+    googleProvider.setCustomParameters({
+      prompt: "select_account",
+    });
+
+    try {
+      console.log("🌀 Redirecting to Google login...");
+      await signInWithRedirect(auth, googleProvider);
+    } catch (err: any) {
+      console.error("🔥 signInWithRedirect failed:", err);
+      setError(err.message);
+    }
+  };
+
+  // const loginWithGoogle = async () => {
+  //   googleProvider.setCustomParameters({
+  //     prompt: "select_account",
+  //   });
+  //   await signInWithRedirect(auth, googleProvider);
+
+  // console.log("🌀 Trying Google login...");
+  // await handleSubmit();
+  // setLoading(true);
+  // setError(null);
+
+  // try {
+  //   googleProvider.setCustomParameters({
+  //     prompt: "select_account",
+  //   });
+
+  //   const userCred = await signInWithPopup(auth, googleProvider);
+  //   console.log("✅ Sign-in success:", userCred);
+
+  //   const idToken = await userCred.user.getIdToken();
+  //   console.log("🪪 ID Token:", idToken);
+
+  //   const res = await fetch("/api/login", {
+  //     method: "POST",
+  //     headers: { "Content-Type": "application/json" },
+  //     body: JSON.stringify({ idToken }),
+  //   });
+
+  //   const data = await res.json();
+  //   console.log("🍪 Session response:", data);
+
+  //   router.push(`/chat/${userCred.user.uid}`);
+  // } catch (err: any) {
+  //   console.error("🔥 Google login error:", err);
+  //   setError(err.message);
+  // } finally {
+  //   setLoading(false);
+  // }
+  // };
+
   const loginWithEmail = async () => {
     await handleSubmit();
     setLoading(true);
@@ -116,32 +250,16 @@ const Login = () => {
     try {
       const userCred = await signInWithEmailAndPassword(auth, email, password);
       const idToken = await userCred.user.getIdToken();
-      await fetch("/api/login", {
+      const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken }),
       });
-      router.push(`/chat/123123`);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loginWithGoogle = async () => {
-    await handleSubmit();
-    setLoading(true);
-    setError(null);
-    try {
-      const userCred = await signInWithPopup(auth, googleProvider);
-      const idToken = await userCred.user.getIdToken();
-      await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
-      });
-      router.push(`/chat/${userCred.user.uid}`);
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error("Login failed. Please check your credentials.");
+      }
+      router.push(`/chat`);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -391,6 +509,9 @@ const Login = () => {
                 <div className="input-icon absolute left-4 top-1/2 -translate-y-1/2 text-pink-300 text-xl transition-all duration-300">
                   📧
                 </div>
+                <div className="text-red-500 text-sm mt-1">
+                  {error && <span>{error}</span>}
+                </div>
               </div>
 
               <div className="relative transition-transform duration-300">
@@ -406,6 +527,9 @@ const Login = () => {
                 />
                 <div className="input-icon absolute left-4 top-1/2 -translate-y-1/2 text-pink-300 text-xl transition-all duration-300">
                   🔐
+                </div>
+                <div className="text-red-500 text-sm mt-1">
+                  {error && <span>{error}</span>}
                 </div>
               </div>
 
@@ -439,6 +563,16 @@ const Login = () => {
                 <div className="w-5 h-5 bg-gradient-to-r from-blue-500 via-yellow-500 to-red-500 rounded"></div>
                 Neural Sync with Google
               </button>
+
+              {/* Link to Register Page */}
+              <div className="text-center mt-4">
+                <Link
+                  href="/register"
+                  className="text-pink-300 hover:underline font-semibold"
+                >
+                  Don't have an account? register here
+                </Link>
+              </div>
             </div>
           </div>
         </div>

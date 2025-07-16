@@ -22,18 +22,17 @@ import {
   doc,
   setDoc,
 } from "firebase/firestore";
-import { useChatLogicV2 } from "../../../lib/hooks/useChatLogicV2";
-import { createQuantumParticle } from "../../../lib/utils/chat";
-import { useMessageActions } from "../../../lib/hooks/useMessageActions";
-import Sidebar from "../../components/chat/Sidebar";
-import ChatHeader from "../../components/chat/ChatHeader";
-import MessageList from "../../components/chat/MessageList";
-import MessageInput from "../../components/chat/MessageInput";
-import { useParams } from "next/navigation";
+import { useChatLogicV2 } from "../../lib/hooks/useChatLogicV2";
+import { createQuantumParticle } from "../../lib/utils/chat";
+import { useMessageActions } from "../../lib/hooks/useMessageActions";
+import Sidebar from "../components/chat/Sidebar";
+import ChatHeader from "../components/chat/ChatHeader";
+import MessageList from "../components/chat/MessageList";
+import MessageInput from "../components/chat/MessageInput";
+import { useRouter } from "next/navigation";
 
 const Chat = () => {
-  const params = useParams();
-  const conversationId = params.id as string;
+  const route = useRouter();
   const [systemDropdownOpen, setSystemDropdownOpen] = useState(false);
   const [systemRole, setSystemRole] = useState("System As");
   const [tone, setTone] = useState("Friendly");
@@ -76,11 +75,6 @@ const Chat = () => {
     handleChatClick,
   } = useChatLogicV2(systemRole, tone);
 
-  // Log chat history whenever it changes
-  React.useEffect(() => {
-    console.log("Current Chat History:", chatHistory);
-  }, [chatHistory]);
-
   const {
     handleDropdownToggle,
     handleCopyMessage,
@@ -94,13 +88,12 @@ const Chat = () => {
   } = useMessageActions({
     setChatHistory,
     userId,
-    conversationId: conversationId,
   });
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     createQuantumParticle(e.clientX, e.clientY);
   };
-  
+
   return (
     <div
       className="min-h-screen w-screen bg-gradient-to-br from-black via-gray-900 to-purple-950 relative overflow-hidden font-['Rajdhani',sans-serif] text-white flex"
@@ -198,7 +191,13 @@ const Chat = () => {
           inputMessage={inputMessage}
           setInputMessage={setInputMessage}
           onKeyPress={handleKeyPress}
-          sendMessage={sendMessage}
+          sendMessage={() => {
+            sendMessage().then((conversationId) => {
+              if (conversationId) {
+                route.push(`/chat/${conversationId}`);
+              }
+            });
+          }}
           isTyping={isTyping}
           sidebarOpen={sidebarOpen}
           systemDropdownOpen={systemDropdownOpen}

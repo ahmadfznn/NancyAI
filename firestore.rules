@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User profile rules
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Conversations rules
+    match /conversations/{conversationId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+
+      // Messages subcollection rules
+      match /messages/{messageId} {
+        allow create, read, update, delete: if request.auth != null && 
+          request.auth.uid == get(/databases/$(database)/documents/conversations/$(conversationId)).data.userId;
+      }
+    }
+
+    // Support tickets rules
+    match /supportTickets/{ticketId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null && 
+        (request.auth.uid == resource.data.userId || 
+         request.auth.token.email == 'admin@nancyai.com');
+    }
+  }
+} 
