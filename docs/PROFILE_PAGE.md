@@ -1,8 +1,8 @@
-# NancyAI Profile Page Implementation
+# FancyAI Profile Page Implementation
 
 ## Overview
 
-The Profile Page is a comprehensive user interface for managing personal settings, AI companion preferences, and interaction history in the NancyAI application.
+The Profile Page is a comprehensive user interface for managing personal settings, AI companion preferences, and interaction history in the FancyAI application.
 
 ## Features
 

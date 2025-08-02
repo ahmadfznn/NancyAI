@@ -4,11 +4,9 @@ import { auth, googleProvider } from "@/lib/firebase";
 import {
   browserSessionPersistence,
   getRedirectResult,
-  GoogleAuthProvider,
   onAuthStateChanged,
   setPersistence,
   signInWithEmailAndPassword,
-  signInWithPopup,
   signInWithRedirect,
 } from "firebase/auth";
 import React, { useState, useEffect, useRef } from "react";
@@ -25,9 +23,6 @@ const Login = () => {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const particlesRef = useRef<HTMLDivElement | null>(null);
 
-  const particles: HTMLDivElement[] = [];
-
-  // Create animated particles
   useEffect(() => {
     const createParticles = () => {
       if (!particlesRef.current) return;
@@ -155,7 +150,6 @@ const Login = () => {
         setError(err.message);
       }
 
-      // ⛑️ Fallback if getRedirectResult failed
       const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user) {
           console.log("🙌 User detected via authStateChanged:", user.email);
@@ -171,7 +165,7 @@ const Login = () => {
           console.log("🍪 Session response:", data);
 
           if (data?.success) {
-            router.push(`/chat/${user.uid}`);
+            router.push(`/chat`);
           } else {
             setError("Session creation failed (authStateChanged).");
           }
@@ -483,7 +477,7 @@ const Login = () => {
             {/* Header */}
             <div className="text-center mb-9">
               <h1 className="logo-text font-orbitron text-4xl font-black mb-2 tracking-wider">
-                NANCY AI
+                FANCY AI
               </h1>
               <p className="text-white/80 text-lg font-light tracking-wide mb-1">
                 Welcome to the Future
@@ -570,7 +564,7 @@ const Login = () => {
                   href="/register"
                   className="text-pink-300 hover:underline font-semibold"
                 >
-                  Don't have an account? register here
+                  Don&apos;t have an account? register here
                 </Link>
               </div>
             </div>

@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import {
-  User,
   Edit,
   Settings,
   Download,
@@ -13,9 +12,7 @@ import {
   Star,
   Clock,
   MessageSquare,
-  Palette,
   Volume2,
-  Sliders,
   Tag,
   Shield,
   Languages,
@@ -160,7 +157,7 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="w-screen min-h-screen flex items-center justify-center bg-black">
         <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-pink-500"></div>
       </div>
     );

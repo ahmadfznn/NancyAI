@@ -1,27 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  Send,
-  Menu,
-  X,
-  MessageSquare,
-  User,
-  LogOut,
-  Plus,
-  Trash2,
-  ChevronDown,
-} from "lucide-react";
-import {
-  collection,
-  addDoc,
-  serverTimestamp,
-  query,
-  orderBy,
-  deleteDoc,
-  doc,
-  setDoc,
-} from "firebase/firestore";
 import { useChatLogicV2 } from "../../lib/hooks/useChatLogicV2";
 import { createQuantumParticle } from "../../lib/utils/chat";
 import { useMessageActions } from "../../lib/hooks/useMessageActions";
@@ -53,23 +32,18 @@ const Chat = () => {
     inputMessage,
     setInputMessage,
     isTyping,
-    setIsTyping,
     streamedReply,
-    setStreamedReply,
     sidebarOpen,
     setSidebarOpen,
     dropdownOpen,
     setDropdownOpen,
     chatRooms,
-    setChatRooms,
     messagesEndRef,
     chatContainerRef,
     userId,
-    setUserId,
     sendMessage,
     handleKeyPress,
     handleNewChat,
-    handleDeleteChat,
     handleLogout,
     handleProfile,
     handleChatClick,

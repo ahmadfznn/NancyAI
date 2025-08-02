@@ -1,5 +1,6 @@
 import React from "react";
 import { ChevronDown } from "lucide-react";
+import Image from "next/image";
 
 interface Message {
   id: string;
@@ -53,7 +54,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           style={{ animation: "avatarSpin 8s linear infinite" }}
         />
         <span className="relative z-10">
-          {message.role === "user" ? "U" : "L"}
+          {message.role === "user" ? "U" : "F"}
         </span>
       </div>
       {/* Message Bubble */}
@@ -72,7 +73,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 key={index}
                 className="mb-2 rounded-lg overflow-hidden border-2 border-pink-500/30"
               >
-                <img
+                <Image
                   src={`data:image/jpeg;base64,${imageData}`}
                   alt={`Uploaded image ${index + 1}`}
                   className="w-full h-auto max-h-64 object-cover"

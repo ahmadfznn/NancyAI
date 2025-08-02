@@ -1,43 +1,65 @@
+// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { auth } from "./lib/firebaseAdmin";
 
 export async function middleware(request: NextRequest) {
   const session = request.cookies.get("session");
   const path = request.nextUrl.pathname;
 
-  // Paths that don't require authentication
   const publicPaths = ["/login", "/register"];
-
-  // Paths that require authentication
   const protectedPaths = ["/chat", "/profile"];
-
-  // Check if the path is a dynamic chat route
   const isDynamicChatRoute = /^\/chat\/[^/]+$/.test(path);
 
-  // If it's a public path, allow access
   if (publicPaths.includes(path)) {
     return NextResponse.next();
   }
 
-  // If it's a protected path or dynamic chat route
   if (protectedPaths.includes(path) || isDynamicChatRoute) {
-    // If no session exists, redirect to login
     if (!session) {
+      console.log(
+        "Middleware: No session cookie found, redirecting to login for protected path:",
+        path
+      );
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
     try {
-      // Verify the session
-      await auth.verifySessionCookie(session.value, true);
+      const verifySessionApiUrl = new URL(
+        "/api/verify",
+        request.url
+      ).toString();
+      console.log(
+        "Middleware: Calling internal /api/verify-session:",
+        verifySessionApiUrl
+      );
+
+      const verifyResponse = await fetch(verifySessionApiUrl, {
+        headers: {
+          Cookie: `session=${session.value}`,
+        },
+      });
+
+      if (!verifyResponse.ok) {
+        console.log(
+          "Middleware: Internal API session verification failed (status not OK)."
+        );
+        return NextResponse.redirect(new URL("/login", request.url));
+      }
+
+      console.log(
+        "Middleware: Session verified successfully by API route for path:",
+        path
+      );
       return NextResponse.next();
     } catch (error) {
-      // Invalid session, redirect to login
+      console.error(
+        "Middleware: Error during internal API session verification fetch:",
+        error
+      );
       return NextResponse.redirect(new URL("/login", request.url));
     }
   }
 
-  // For all other routes, proceed normally
   return NextResponse.next();
 }
 

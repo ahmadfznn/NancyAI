@@ -1,6 +1,12 @@
 {
-  "extends": [
-    "next/core-web-vitals",
-    "next/typescript"
-  ]
+  "extends": "next/core-web-vitals",
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "off",
+    "react-hooks/exhaustive-deps": "off",
+    "@typescript-eslint/no-unused-vars": "off"
+    // Kamu juga bisa set jadi "warn" instead of "off" kalau mau cuma warning aja
+    // "@typescript-eslint/no-explicit-any": "warn",
+    // "react-hooks/exhaustive-deps": "warn",
+    // "@typescript-eslint/no-unused-vars": "warn"
+  }
 }

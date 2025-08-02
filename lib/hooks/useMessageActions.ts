@@ -46,8 +46,7 @@ export function useMessageActions({
     );
   }, []);
 
-  const handleEditMessage = useCallback((message: any) => {
-    // Editable input field logic (implement as needed)
+  const handleEditMessage = useCallback(() => {
     alert("Edit message feature coming soon!");
   }, []);
 
@@ -124,8 +123,7 @@ export function useMessageActions({
     alert("Regenerate feature coming soon!");
   }, []);
 
-  const handleShare = useCallback((message: any) => {
-    // Generate sharable link, or open modal (implement as needed)
+  const handleShare = useCallback(() => {
     alert("Share feature coming soon!");
   }, []);
 

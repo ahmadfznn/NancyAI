@@ -14,7 +14,7 @@ import {
 import { auth, db } from "../firebase";
 
 export function useChatLogicV2(systemRole: string, tone: string = "formal") {
-  const { id } = useParams();
+  const { id: currentConversationIdFromUrl } = useParams();
   const route = useRouter();
 
   const toneDescriptions = {
@@ -80,7 +80,6 @@ Only break the character if explicitly instructed to do so by the user.
     base64: string | null;
   }>({ file: null, preview: null, base64: null });
 
-  // Regenerate system prompt when systemRole or tone changes
   useEffect(() => {
     const newSystemPrompt = `
 You are acting as a ${systemRole} who always responds in a ${tone} tone.
@@ -116,18 +115,22 @@ Only break the character if explicitly instructed to do so by the user.
       if (user) {
         setUserId(user.uid);
         try {
-          // If no conversation ID is provided, skip fetching messages
-          if (!id) {
+          if (!currentConversationIdFromUrl) {
             console.log("No conversation ID provided, skipping message fetch");
+
             return;
           }
 
-          const convoRef = doc(db, "conversations", id as string);
+          const convoRef = doc(
+            db,
+            "conversations",
+            currentConversationIdFromUrl as string
+          );
           const messagesRef = collection(convoRef, "messages");
           const messagesQuery = query(messagesRef, orderBy("timestamp"));
           const querySnapshot = await getDocs(messagesQuery);
 
-          console.log("Conversation ID:", id);
+          console.log("Conversation ID:", currentConversationIdFromUrl);
           console.log("User ID:", user.uid);
           console.log("Total messages found:", querySnapshot.docs.length);
 
@@ -148,19 +151,19 @@ Only break the character if explicitly instructed to do so by the user.
           });
 
           console.log("Processed Messages:", messages);
-
           setChatHistory(messages);
         } catch (err) {
           console.error("🔥 Failed to fetch messages:", err);
+
+          setChatHistory([]);
         }
       } else {
-        // Redirect to login page if user is null
         setUserId(null);
         route.push("/login");
       }
     });
     return () => unsubscribe();
-  }, [id, route]);
+  }, [currentConversationIdFromUrl, route]);
 
   useEffect(() => {
     const fetchChatRooms = async () => {
@@ -283,18 +286,30 @@ Only break the character if explicitly instructed to do so by the user.
       return null;
     }
 
-    // Generate a new conversation ID from Firestore
-    const convoRef = await addDoc(collection(db, "conversations"), {
-      userId,
-      lastMessage: inputMessage,
-      timestamp: serverTimestamp(),
-    });
-    const conversationId = convoRef.id;
+    let conversationIdToUse = currentConversationIdFromUrl as
+      | string
+      | undefined;
+
+    if (!conversationIdToUse) {
+      console.log("🆕 Starting a new conversation...");
+      const convoRef = await addDoc(collection(db, "conversations"), {
+        userId,
+        lastMessage: inputMessage,
+        timestamp: serverTimestamp(),
+      });
+      conversationIdToUse = convoRef.id;
+
+      route.push(`/chat/${conversationIdToUse}`);
+    } else {
+      console.log(
+        `🔄 Continuing existing conversation: ${conversationIdToUse}`
+      );
+    }
 
     console.log("💾 Saving message to Firestore", {
       userId,
       inputMessage,
-      conversationId,
+      conversationId: conversationIdToUse,
       imagePreview: uploadedImage.preview ? "Present" : "Not Present",
       imageBase64: uploadedImage.base64
         ? `${uploadedImage.base64.substring(0, 50)}... (${
@@ -306,7 +321,7 @@ Only break the character if explicitly instructed to do so by the user.
       userId,
       "user",
       inputMessage,
-      conversationId,
+      conversationIdToUse,
       imageBase64
     );
 
@@ -397,7 +412,9 @@ Only break the character if explicitly instructed to do so by the user.
                 aiReply += json.message.content;
                 setStreamedReply(aiReply);
               }
-            } catch (err) {}
+            } catch (err) {
+              console.log(err);
+            }
           }
         }
       }
@@ -409,7 +426,7 @@ Only break the character if explicitly instructed to do so by the user.
           userId,
           "assistant",
           aiReply,
-          conversationId
+          conversationIdToUse
         );
         setChatHistory((prev) => [
           ...prev,
@@ -422,8 +439,7 @@ Only break the character if explicitly instructed to do so by the user.
         ]);
       }
 
-      // Return the conversation ID
-      return conversationId;
+      return conversationIdToUse;
     } catch (err) {
       setIsTyping(false);
       setStreamedReply("");
@@ -450,20 +466,30 @@ Only break the character if explicitly instructed to do so by the user.
   };
 
   const handleNewChat = async () => {
+    if (!userId) {
+      console.log("🚫 User not logged in, cannot create new chat.");
+      route.push("/login");
+      return;
+    }
     try {
       const docRef = await addDoc(collection(db, "conversations"), {
-        userId,
+        userId: userId,
+        name: `New Chat ${new Date().toLocaleString()}`,
         lastMessage: "",
         timestamp: serverTimestamp(),
       });
       const newChat = {
         id: docRef.id,
-        name: `New Chat ${chatRooms.length + 1}`,
+        name: `New Chat ${new Date().toLocaleString()}`,
         lastMessage: "Start a conversation...",
         timestamp: "now",
       };
       setChatRooms((prev) => [newChat, ...prev]);
       route.push(`/chat/${docRef.id}`);
+      setChatHistory([]);
+      setInputMessage("");
+      setStreamedReply("");
+      setIsTyping(false);
     } catch (err) {
       console.error("🔥 Failed to create new conversation:", err);
     }
@@ -503,8 +529,6 @@ Only break the character if explicitly instructed to do so by the user.
   const clearUploadedImage = () => {
     setUploadedImage({ file: null, preview: null, base64: null });
   };
-
-  // Dropdown and message actions can be further extracted if needed
 
   return {
     chatHistory,

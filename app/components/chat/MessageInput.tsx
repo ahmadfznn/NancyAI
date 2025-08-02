@@ -9,13 +9,13 @@ import {
   Type,
   Smile,
   Zap,
-  HelpCircle,
   Globe,
   Code,
   X,
 } from "lucide-react";
 import { useImageUpload } from "../../../lib/hooks/useImageUpload";
 import { useSpeechRecognition } from "../../../lib/hooks/useSpeechRecognition";
+import Image from "next/image";
 
 interface MessageInputProps {
   inputMessage: string;
@@ -53,14 +53,8 @@ const MessageInput: React.FC<MessageInputProps> = ({
     useImageUpload();
 
   // Speech Recognition Hook
-  const {
-    transcription,
-    isListening,
-    error,
-    startListening,
-    stopListening,
-    clearTranscription,
-  } = useSpeechRecognition();
+  const { transcription, isListening, error, startListening, stopListening } =
+    useSpeechRecognition();
 
   // State for additional dropdowns and features
   const [toneDropdownOpen, setToneDropdownOpen] = useState(false);
@@ -116,7 +110,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
       {/* Image Preview */}
       {uploadedImage.preview && (
         <div className="mb-2 relative">
-          <img
+          <Image
             src={`data:image/jpeg;base64,${uploadedImage.base64}`}
             alt="Upload preview"
             className="max-h-24 w-auto rounded-lg shadow-lg border-2 border-pink-500/30"
@@ -271,7 +265,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={onKeyPress}
             className="flex-1 bg-transparent border-none text-white text-base font-['Rajdhani',sans-serif] outline-none py-2 placeholder-white/80 placeholder:italic"
-            placeholder="Transmit your thoughts to Nancy AI..."
+            placeholder="Transmit your thoughts to Fancy AI..."
             disabled={isTyping}
           />
 
@@ -310,7 +304,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
       {isTyping && (
         <div className="text-xs text-white/70 mt-2 flex items-center">
           <span className="animate-pulse mr-2">💭</span>
-          Nancy AI is thinking...
+          Fancy AI is thinking...
         </div>
       )}
     </div>

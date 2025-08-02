@@ -76,7 +76,7 @@ const MessageList: React.FC<MessageListProps> = ({
           <div className="max-w-[70%] p-5 lg:p-6 rounded-3xl relative backdrop-blur-md text-sm lg:text-base leading-relaxed bg-gradient-to-br from-gray-800/80 to-gray-900/90 border border-white/10 text-white/90 shadow-[0_8px_32px_rgba(0,0,0,0.3)] before:absolute before:inset-0 before:rounded-3xl before:bg-gradient-to-r before:from-transparent before:via-pink-500/10 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300">
             <div className="relative z-10 whitespace-pre-wrap">
               {streamedReply || (
-                <span className="opacity-50">Nancy is typing...</span>
+                <span className="opacity-50">Fancy is typing...</span>
               )}
             </div>
           </div>

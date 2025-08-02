@@ -26,9 +26,6 @@ const Register = () => {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
-  const particles: HTMLDivElement[] = [];
-
-  // Create animated particles
   useEffect(() => {
     const createParticles = () => {
       if (!particlesRef.current) return;
@@ -403,7 +400,7 @@ const Register = () => {
             {/* Header */}
             <div className="text-center mb-9">
               <h1 className="logo-text font-orbitron text-4xl font-black mb-2 tracking-wider">
-                NANCY AI
+                FANCY AI
               </h1>
               <p className="text-white/80 text-lg font-light tracking-wide mb-1">
                 Welcome to the Future

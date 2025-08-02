@@ -71,10 +71,6 @@ export function useSpeechRecognition() {
     }
 
     try {
-      // Check microphone permissions
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      // Start speech recognition
       recognition.start();
     } catch (err: any) {
       console.error("Microphone access error:", err);

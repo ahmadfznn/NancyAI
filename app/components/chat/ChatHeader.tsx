@@ -6,7 +6,7 @@ interface ChatHeaderProps {
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
-  title = "Nancy AI",
+  title = "Fancy AI",
   statuses = ["Neural Link Active", "Quantum Processing", "Encryption Secure"],
 }) => {
   return (
