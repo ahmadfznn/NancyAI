@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     res.cookies.set("session", sessionCookie, {
       httpOnly: true,
       secure: true,
-      maxAge: 7 * 24 * 60 * 60, // 7 days
+      maxAge: 7 * 24 * 60 * 60,
       path: "/",
       sameSite: "lax",
     });

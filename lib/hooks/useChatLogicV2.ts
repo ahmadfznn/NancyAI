@@ -32,27 +32,28 @@ export function useChatLogicV2(systemRole: string, tone: string = "formal") {
       "Minimalist, direct, emotionally detached. Never exaggerate or show overt empathy.",
   };
 
-  const SYSTEM_PROMPT = `
-You are acting as a ${systemRole} who always responds in a ${tone} tone.
+  //   const SYSTEM_PROMPT = `
+  // You are acting as a ${systemRole} who always responds in a ${tone} tone.
 
-Your responses must fully reflect:
-- The mindset, language, and behavior of a professional ${systemRole}
-- The unique characteristics of a ${tone.toLowerCase()} tone: ${
-    toneDescriptions[tone as keyof typeof toneDescriptions]
-  }
+  // Your responses must fully reflect:
+  // - The mindset, language, and behavior of a professional ${systemRole}
+  // - The unique characteristics of a ${tone.toLowerCase()} tone: ${
+  //     toneDescriptions[tone as keyof typeof toneDescriptions]
+  //   }
 
-Always stay in character. Do not explain yourself. Never mention that you are an AI or assistant.
+  // Always stay in character. Do not explain yourself. Never mention that you are an AI or assistant.
 
-Respond using language, vocabulary, and sentence structure that match a real ${systemRole} speaking in a ${tone.toLowerCase()} tone.
+  // Respond using language, vocabulary, and sentence structure that match a real ${systemRole} speaking in a ${tone.toLowerCase()} tone.
 
-Avoid overexplaining. Be brief, clear, and emotionally in-sync with the chosen tone. You must mirror the user's mood, intention, and language level while staying ${tone.toLowerCase()} and aligned with your role.
+  // Avoid overexplaining. Be brief, clear, and emotionally in-sync with the chosen tone. You must mirror the user's mood, intention, and language level while staying ${tone.toLowerCase()} and aligned with your role.
 
-Unless necessary, responses should be concise (under 30 words), impactful, and keep the user engaged.
+  // Unless necessary, responses should be concise (under 30 words), impactful, and keep the user engaged.
 
-If unsure how to behave, emulate a real human ${systemRole} speaking in a strong ${tone.toLowerCase()} voice.
+  // If unsure how to behave, emulate a real human ${systemRole} speaking in a strong ${tone.toLowerCase()} voice.
 
-Only break the character if explicitly instructed to do so by the user.
-`;
+  // Only break the character if explicitly instructed to do so by the user.
+  // `;
+  const SYSTEM_PROMPT = `You are a professional ${systemRole}, always responding in a ${tone.toLowerCase()} tone. Use casual, warm, and friendly language. Keep it under 30 words. Never mention you're an AI.`;
 
   const [chatHistory, setChatHistory] = useState<
     {
@@ -81,27 +82,7 @@ Only break the character if explicitly instructed to do so by the user.
   }>({ file: null, preview: null, base64: null });
 
   useEffect(() => {
-    const newSystemPrompt = `
-You are acting as a ${systemRole} who always responds in a ${tone} tone.
-
-Your responses must fully reflect:
-- The mindset, language, and behavior of a professional ${systemRole}
-- The unique characteristics of a ${tone.toLowerCase()} tone: ${
-      toneDescriptions[tone as keyof typeof toneDescriptions]
-    }
-
-Always stay in character. Do not explain yourself. Never mention that you are an AI or assistant.
-
-Respond using language, vocabulary, and sentence structure that match a real ${systemRole} speaking in a ${tone.toLowerCase()} tone.
-
-Avoid overexplaining. Be brief, clear, and emotionally in-sync with the chosen tone. You must mirror the user's mood, intention, and language level while staying ${tone.toLowerCase()} and aligned with your role.
-
-Unless necessary, responses should be concise (under 30 words), impactful, and keep the user engaged.
-
-If unsure how to behave, emulate a real human ${systemRole} speaking in a strong ${tone.toLowerCase()} voice.
-
-Only break the character if explicitly instructed to do so by the user.
-`;
+    const newSystemPrompt = `You are a professional ${systemRole}, always responding in a ${tone.toLowerCase()} tone. Use casual, warm, and friendly language. Keep it under 30 words. Never mention you're an AI.`;
     setCurrentSystemPrompt(newSystemPrompt);
   }, [systemRole, tone]);
 
@@ -330,93 +311,105 @@ Only break the character if explicitly instructed to do so by the user.
       .slice(-20);
     const messagesForAPI = [
       { role: "system", content: currentSystemPrompt },
-      ...cleanHistory,
+      ...cleanHistory.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      })),
     ];
 
     try {
       const imageData = uploadedImage.base64;
 
-      console.log("🖼️ Image Data Preparation:", {
-        originalPreview: uploadedImage.preview
-          ? uploadedImage.preview.substring(0, 100) + "..."
-          : "No Preview",
-        extractedBase64: imageData
-          ? `${imageData.substring(0, 50)}... (${imageData.length} chars)`
-          : "No Base64 Data",
-      });
+      // const apiPayload = {
+      //   model: "qwen3:4b",
+      //   stream: true,
+      //   think: false,
+      //   raw: false,
+      //   messages: messagesForAPI,
+      //   ...(imageData && {
+      //     images: [imageData],
+      //   }),
+      //   options: {
+      //     temperature: 1.5,
+      //     top_k: 40,
+      //     top_p: 0.94,
+      //     repeat_penalty: 1.1,
+      //     presence_penalty: 1.5,
+      //     frequency_penalty: 1.2,
+      //     stop: ["user:", "system:", "<|endoftext|>"],
+      //     seed: 2024,
+      //     num_ctx: 4096,
+      //     num_gpu: 1,
+      //     main_gpu: 0,
+      //     num_batch: 4,
+      //     use_mmap: true,
+      //     num_thread: 3,
+      //   },
+      // };
 
-      const apiPayload = {
-        model: "gemma3:4b",
-        stream: true,
-        think: false,
-        raw: false,
-        messages: messagesForAPI,
-        ...(imageData && {
-          images: [imageData],
-        }),
-        options: {
-          temperature: 1.5,
-          top_k: 40,
-          top_p: 0.94,
-          repeat_penalty: 1.1,
-          presence_penalty: 1.5,
-          frequency_penalty: 1.2,
-          stop: ["user:", "system:", "<|endoftext|>"],
-          seed: 2024,
-          num_ctx: 4096,
-          num_gpu: 1,
-          main_gpu: 0,
-          num_batch: 4,
-          use_mmap: true,
-          num_thread: 3,
-        },
-      };
+      // const response = await fetch("http://localhost:11434/api/chat", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify(apiPayload),
+      // });
+      const stream = true;
 
-      console.log("🚀 Ollama API Payload:", {
-        hasImages: !!imageData,
-        messagesCount: messagesForAPI.length,
-        imageDataLength: imageData ? imageData.length : "N/A",
-      });
+      const response = await fetch(
+        "https://api.mistral.ai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_MISTRAL_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "mistral-small",
+            messages: messagesForAPI,
+            stream,
+            temperature: 0.7,
+          }),
+        }
+      );
 
-      const response = await fetch("http://localhost:11434/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(apiPayload),
-      });
+      if (!response.ok) {
+        throw new Error(`API error: ${response.statusText}`);
+      }
 
-      console.log("🌐 Ollama API Response:", {
-        status: response.status,
-        statusText: response.statusText,
-      });
-
-      if (!response.body) throw new Error("No response body");
-      const reader = response.body.getReader();
       let aiReply = "";
-      let done = false;
 
-      while (!done) {
-        const { value, done: doneReading } = await reader.read();
-        done = doneReading;
-        if (value) {
-          const chunk = new TextDecoder().decode(value);
-          for (const line of chunk.split("\n")) {
-            if (!line.trim()) continue;
-            try {
-              const json = JSON.parse(line);
-              if (
-                json.message &&
-                json.message.role === "assistant" &&
-                typeof json.message.content === "string" &&
-                !json.message.thinking
-              ) {
-                aiReply += json.message.content;
-                setStreamedReply(aiReply);
+      if (stream) {
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let done = false;
+
+        while (!done) {
+          const { value, done: doneReading } = await reader.read();
+          done = doneReading;
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (line.trim().startsWith("data:")) {
+              const jsonLine = line.replace("data: ", "").trim();
+              if (jsonLine === "[DONE]") break;
+
+              try {
+                const parsed = JSON.parse(jsonLine);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (typeof content === "string") {
+                  aiReply += content;
+                  setStreamedReply(aiReply);
+                }
+              } catch (err) {
+                console.warn("❌ Parse error:", err);
               }
-            } catch (err) {
-              console.log(err);
             }
           }
         }
+      } else {
+        // NON-STREAMING MODE
+        const json = await response.json();
+        aiReply = json.choices?.[0]?.message?.content || "❓ Tidak ada balasan";
       }
 
       setIsTyping(false);
@@ -428,6 +421,7 @@ Only break the character if explicitly instructed to do so by the user.
           aiReply,
           conversationIdToUse
         );
+
         setChatHistory((prev) => [
           ...prev,
           {
